@@ -4,24 +4,26 @@ module Lib
     ( someFunc
     ) where
 
-import Debug.Dump
-import Data.HashMap as Hash
--- import GHCJS.Foreign ()
--- import GHCJS.Types
+import GHCJS.Marshal(fromJSVal)
+import GHCJS.Foreign.Callback (Callback, syncCallback1, OnBlocked(ContinueAsync))
+import Data.JSString (JSString, unpack, pack)
+import GHCJS.Types (JSVal)
 
--- foreign import javascript unsafe "window.alert($1)" js_alert :: JSString -> IO ()
+sayHello :: String -> IO ()
+sayHello name = print $ "hello, " ++ name
 
--- someFunc :: IO ()
--- someFunc = js_alert "Hello from GHCJS!"
+sayHello' :: JSVal -> IO ()
+sayHello' jsval = do
+    Just str <- fromJSVal jsval
+    sayHello $ unpack str
 
-someFunc :: IO ()
+foreign import javascript unsafe "js_callback_ = $1"
+    set_callback :: Callback a -> IO ()
+
+foreign import javascript unsafe "js_callback_($1)"
+    test_callback :: JSString -> IO ()
+
 someFunc = do
-  print 136
-  print "HELLO HELLO 2"
-  -- putStrLn [d| 1, 2+3 |]
-  -- print [d| 1, 2+3 |]
-  let
-    stats :: Map String Int
-    stats = Hash.singleton "a" 1
-  print stats
-  print $ Hash.toList stats
+    callback <- syncCallback1 ContinueAsync sayHello'
+    set_callback callback
+    test_callback $ pack "world"
